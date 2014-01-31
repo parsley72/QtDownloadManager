@@ -6,6 +6,7 @@
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QFile>
+#include <QTimer>
 
 class DownloadManager : public QObject
 {
@@ -28,7 +29,9 @@ public slots:
 
 private slots:
 
-    void download( QNetworkRequest& request );
+    void download();
+
+    void finishedHead();
 
     void finished();
 
@@ -36,13 +39,20 @@ private slots:
 
     void error ( QNetworkReply::NetworkError code );
 
-private:
+    void timeout();
 
+private:
+    QUrl mURL;
+    QString mFileName;
     QNetworkAccessManager* mManager;
     QNetworkRequest mCurrentRequest;
     QNetworkReply* mCurrentReply;
     QFile* mFile;
+    int mDownloadTotal;
+    bool bAcceptRanges;
+    int mDownloadSize;
     int mDownloadSizeAtPause;
+    QTimer *mTimer;
 };
 
 #endif // DOWNLOADMANAGER_H

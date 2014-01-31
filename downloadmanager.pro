@@ -18,3 +18,6 @@ SOURCES += main.cpp \
 HEADERS += \
     downloadmanager.h \
     downloadwidget.h
+
+FORMS += \
+    form.ui
