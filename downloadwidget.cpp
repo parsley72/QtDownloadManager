@@ -4,6 +4,7 @@
 #include <QPushButton>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QStandardItemModel>
 
 DownloadWidget::DownloadWidget(QWidget *parent) :
     QWidget(parent),
@@ -21,13 +22,18 @@ DownloadWidget::DownloadWidget(QWidget *parent) :
 
     ui->urlEdit->setText("http://hivelocity.dl.sourceforge.net/project/tortoisesvn/1.8.4/Application/TortoiseSVN-1.8.4.24972-x64-svn-1.8.5.msi");
 
+    QStandardItemModel *model = new QStandardItemModel(0, 1, this);
+    ui->listView->setModel(model);
+
     mManager = new DownloadManager(this);
-    connect(mManager,SIGNAL(downloadComplete()),this,SLOT(finished()));
-    connect(mManager,SIGNAL(progress(int)),this,SLOT(progress(int)));
+    connect(mManager, SIGNAL(addLine(QString)) ,this, SLOT(addLine(QString)));
+    connect(mManager, SIGNAL(downloadComplete()) ,this, SLOT(finished()));
+    connect(mManager, SIGNAL(progress(int)) ,this, SLOT(progress(int)));
 }
 
 void DownloadWidget::on_downloadBtn_clicked()
 {
+    ui->listView->reset();
     QUrl url(ui->urlEdit->text());
     mManager->download(url);
     ui->downloadBtn->setEnabled(false);
@@ -46,6 +52,13 @@ void DownloadWidget::on_resumeBtn_clicked()
     mManager->resume();
     ui->pauseBtn->setEnabled(true);
     ui->resumeBtn->setEnabled(false);
+}
+
+void DownloadWidget::addLine(QString qsLine)
+{
+    int nRow = ui->listView->model()->rowCount();
+    ui->listView->model()->insertRow(nRow);
+    ui->listView->model()->setData(ui->listView->model()->index(nRow, 0), qsLine);
 }
 
 void DownloadWidget::finished()

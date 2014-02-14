@@ -11,3 +11,4 @@ Original code taken from:
 Useful StackOverflow posts:
 * http://stackoverflow.com/questions/12469072/is-it-possible-to-detect-the-resume-able-links-via-qnetworkaccessmanager
 * http://stackoverflow.com/questions/10206898/how-to-download-large-file-quickly-in-qt
+* http://stackoverflow.com/questions/1208821/reading-the-final-name-of-a-file-downloaded-using-qnetworkaccessmanager

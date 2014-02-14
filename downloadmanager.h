@@ -15,6 +15,8 @@ public:
     explicit DownloadManager(QObject *parent = 0);
 
 signals:
+    void addLine(QString qsLine);
+
     void downloadComplete();
 
     void progress( int percentage);

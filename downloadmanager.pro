@@ -21,3 +21,6 @@ HEADERS += \
 
 FORMS += \
     form.ui
+
+OTHER_FILES += \
+    README.md

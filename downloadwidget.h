@@ -19,6 +19,7 @@ public:
     explicit DownloadWidget(QWidget *parent = 0);
 
 private slots:
+    void addLine(QString qsLine);
     void finished();
     void progress(int percentage);
 

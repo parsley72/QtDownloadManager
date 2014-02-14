@@ -1,7 +1,10 @@
 #include "downloadmanager.h"
+#include "downloadwidget.h"
 
 #include <QFileInfo>
+#include <QDateTime>
 #include <QDebug>
+
 
 DownloadManager::DownloadManager(QObject *parent) :
     QObject(parent),
@@ -97,13 +100,21 @@ void DownloadManager::finishedHead()
 {
     mTimer->stop();
     bAcceptRanges = false;
+
     QList<QByteArray> list = mCurrentReply->rawHeaderList();
+    foreach (QByteArray header, list)
+    {
+        QString qsLine = QString(header) + " = " + mCurrentReply->rawHeader(header);
+        addLine(qsLine);
+    }
+
     if (mCurrentReply->hasRawHeader("Accept-Ranges"))
     {
         QString qstrAcceptRanges = mCurrentReply->rawHeader("Accept-Ranges");
         bAcceptRanges = (qstrAcceptRanges.compare("bytes", Qt::CaseInsensitive) == 0);
         qDebug() << "Accept-Ranges = " << qstrAcceptRanges << bAcceptRanges;
     }
+
     mDownloadTotal = mCurrentReply->header(QNetworkRequest::ContentLengthHeader).toInt();
 
 //    mCurrentRequest = QNetworkRequest(url);
