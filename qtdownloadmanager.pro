@@ -6,7 +6,7 @@
 
 QT       += network
 
-TARGET = downloadmanager
+TARGET = qtdownloadmanager
 CONFIG   += console
 
 TEMPLATE = app
