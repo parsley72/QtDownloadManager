@@ -13,11 +13,15 @@ TEMPLATE = app
 
 SOURCES += main.cpp \
     downloadmanager.cpp \
-    downloadwidget.cpp
+    downloadwidget.cpp \
+    downloadmanagerFTP.cpp \
+    downloadmanagerHTTP.cpp
 
 HEADERS += \
     downloadmanager.h \
-    downloadwidget.h
+    downloadwidget.h \
+    downloadmanagerFTP.h \
+    downloadmanagerHTTP.h
 
 FORMS += \
     form.ui

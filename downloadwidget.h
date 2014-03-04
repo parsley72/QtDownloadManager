@@ -1,7 +1,13 @@
 #ifndef DOWNLOADWIDGET_H
 #define DOWNLOADWIDGET_H
 
-#include <QWidget>
+#include <QtGlobal>
+
+#if QT_VERSION >= 0x050000
+    #include <QtWidgets\QWidget>
+#else
+    #include <QWidget>
+#endif
 #include "downloadmanager.h"
 
 namespace Ui {
@@ -20,8 +26,8 @@ public:
 
 private slots:
     void addLine(QString qsLine);
+    void progress(int nPercentage);
     void finished();
-    void progress(int percentage);
 
     void on_downloadBtn_clicked();
     void on_pauseBtn_clicked();

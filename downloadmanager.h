@@ -9,69 +9,41 @@
 #include <QFile>
 #include <QTimer>
 
+#include "downloadmanagerHTTP.h"
+
 #if QT_VERSION < 0x050000
 #include <QFtp>
+#include "downloadmanagerFTP.h"
 #endif
 
 
 class DownloadManager : public QObject
 {
     Q_OBJECT
+
 public:
     explicit DownloadManager(QObject *parent = 0);
 
 signals:
     void addLine(QString qsLine);
-
+    void progress(int nPercentage);
     void downloadComplete();
 
-    void progress( int percentage);
-
 public slots:
-
     void download(QUrl url);
-
     void pause();
-
     void resume();
 
 private slots:
-
-    void download();
-
-    void finishedHead();
-
-    void finished();
-
-    void downloadProgress ( qint64 bytesReceived, qint64 bytesTotal );
-
-    void error ( QNetworkReply::NetworkError code );
-
-    void timeout();
-
-    void ftpStateChanged(int state);
-    void ftpCommandStarted(int id);
-    void ftpCommandFinished(int id, bool error);
-    void ftpRawCommandReply(int replyCode, const QString & detail);
-    void ftpDataTransferProgress(qint64 bytesReceived, qint64 bytesTotal);
-    void ftpReadyRead();
+    void localAddLine(QString qsLine);
+    void localProgress(int nPercentage);
+    void localDownloadComplete();
 
 private:
-    void ftpFinishedHelp();
-
-    QUrl mURL;
-    QString mFileName;
-    QNetworkAccessManager* mManager;
-    QNetworkRequest mCurrentRequest;
-    QNetworkReply* mCurrentReply;
-    QFile* mFile;
-    int mDownloadTotal;
-    bool bAcceptRanges;
-    int mDownloadSize;
-    int mDownloadSizeAtPause;
-    QTimer *mTimer;
+    QUrl _URL;
+    DownloadManagerHTTP *_pHTTP;
 #if QT_VERSION < 0x050000
-    QFtp *mFTP;
+    DownloadManagerFTP *_pFTP;
 #endif
 };
 
