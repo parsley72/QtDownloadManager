@@ -70,7 +70,7 @@ void DownloadManager::download(QUrl url)
         mFTP->connectToHost(mURL.host(), url.port(21));
         mFTP->login();
         qDebug() << "HELP";
-        mHelpId = mFTP->rawCommand("HELP");
+        mFTP->rawCommand("HELP");
     }
     else
 #endif
