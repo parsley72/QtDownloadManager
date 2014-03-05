@@ -8,7 +8,9 @@
 
 DownloadManager::DownloadManager(QObject *parent) :
     QObject(parent)
+#if QT_VERSION < 0x050000
     , _pFTP(NULL)
+#endif
     , _pHTTP(NULL)
 {
 }
