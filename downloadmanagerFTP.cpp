@@ -19,7 +19,6 @@ DownloadManagerFTP::DownloadManagerFTP(QObject *parent) :
     , _bAcceptRanges(false)
     , _nDownloadSize(0)
     , _nDownloadSizeAtPause(0)
-    , _pTimer(NULL)
     , _pFTP(NULL)
 {
 }
@@ -82,12 +81,6 @@ void DownloadManagerFTP::download(QUrl url)
 
         _pCurrentReply = _pManager->head(_CurrentRequest);
 
-        _pTimer = new QTimer(this);
-        _pTimer->setInterval(5000);
-        _pTimer->setSingleShot(true);
-        connect(_pTimer, SIGNAL(timeout()), this, SLOT(timeout()));
-        _pTimer->start();
-
         connect(_pCurrentReply, SIGNAL(finished()), this, SLOT(finishedHead()));
         connect(_pCurrentReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(error(QNetworkReply::NetworkError)));
     }
@@ -101,11 +94,10 @@ void DownloadManagerFTP::pause()
     {
         return;
     }
-    _pTimer->stop();
-    disconnect(_pTimer, SIGNAL(timeout()), this, SLOT(timeout()));
     disconnect(_pCurrentReply,SIGNAL(finished()),this,SLOT(finished()));
     disconnect(_pCurrentReply,SIGNAL(downloadProgress(qint64,qint64)),this,SLOT(downloadProgress(qint64,qint64)));
     disconnect(_pCurrentReply,SIGNAL(error(QNetworkReply::NetworkError)),this,SLOT(error(QNetworkReply::NetworkError)));
+    _Timer.stop();
 
     _pCurrentReply->abort();
 //    _pFile->write( _pCurrentReply->readAll());
@@ -140,10 +132,6 @@ void DownloadManagerFTP::download()
 
     _pCurrentReply = _pManager->get(_CurrentRequest);
 
-    _pTimer->setInterval(5000);
-    _pTimer->setSingleShot(true);
-    connect(_pTimer, SIGNAL(timeout()), this, SLOT(timeout()));
-    _pTimer->start();
 
     connect(_pCurrentReply, SIGNAL(finished()), this, SLOT(finished()));
     connect(_pCurrentReply, SIGNAL(downloadProgress(qint64,qint64)), this, SLOT(downloadProgress(qint64,qint64)));
@@ -191,7 +179,7 @@ void DownloadManagerFTP::finished()
 {
     qDebug() << __FUNCTION__;
 
-    _pTimer->stop();
+    _Timer.stop();
     _pFile->close();
     QFile::remove(_qsFileName);
     _pFile->rename(_qsFileName + ".part", _qsFileName);
@@ -203,7 +191,6 @@ void DownloadManagerFTP::finished()
 
 void DownloadManagerFTP::downloadProgress(qint64 bytesReceived, qint64 bytesTotal)
 {
-    _pTimer->stop();
     _nDownloadSize = _nDownloadSizeAtPause + bytesReceived;
     qDebug() << "Download Progress: Received=" << _nDownloadSize <<": Total=" << _nDownloadSizeAtPause + bytesTotal;
 
@@ -212,7 +199,6 @@ void DownloadManagerFTP::downloadProgress(qint64 bytesReceived, qint64 bytesTota
     qDebug() << percentage;
     emit progress(percentage);
 
-    _pTimer->start(5000);
 }
 
 

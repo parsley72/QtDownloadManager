@@ -46,7 +46,7 @@ private:
     bool _bAcceptRanges;
     int _nDownloadSize;
     int _nDownloadSizeAtPause;
-    QTimer *_pTimer;
+    QTimer _Timer;
 };
 
 #endif // DOWNLOADMANAGERHTTP_H

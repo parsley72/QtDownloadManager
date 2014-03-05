@@ -58,8 +58,8 @@ private:
     bool _bAcceptRanges;
     int _nDownloadSize;
     int _nDownloadSizeAtPause;
-    QTimer *_pTimer;
     QFtp *_pFTP;
+    QTimer _Timer;
 };
 
 #endif // QT_VERSION < 0x050000
