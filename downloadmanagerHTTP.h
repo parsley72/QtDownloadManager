@@ -16,6 +16,7 @@ class DownloadManagerHTTP : public QObject
 
 public:
     explicit DownloadManagerHTTP(QObject *parent = 0);
+    virtual ~DownloadManagerHTTP();
 
 signals:
     void addLine(QString qsLine);

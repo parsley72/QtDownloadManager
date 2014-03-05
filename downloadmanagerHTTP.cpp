@@ -19,6 +19,15 @@ DownloadManagerHTTP::DownloadManagerHTTP(QObject *parent) :
 }
 
 
+DownloadManagerHTTP::~DownloadManagerHTTP()
+{
+    if (_pCurrentReply != NULL)
+    {
+        pause();
+    }
+}
+
+
 void DownloadManagerHTTP::download(QUrl url)
 {
     qDebug() << "download: URL=" <<url.toString();
@@ -49,7 +58,7 @@ void DownloadManagerHTTP::download(QUrl url)
 void DownloadManagerHTTP::pause()
 {
     qDebug() << "pause() = " << _nDownloadSize;
-    if (_pCurrentReply == 0)
+    if (_pCurrentReply == NULL)
     {
         return;
     }

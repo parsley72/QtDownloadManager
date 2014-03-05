@@ -20,6 +20,7 @@ class DownloadManagerFTP : public QObject
 
 public:
     explicit DownloadManagerFTP(QObject *parent = 0);
+    virtual ~DownloadManagerFTP();
 
 signals:
     void addLine(QString qsLine);

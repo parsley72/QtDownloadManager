@@ -24,6 +24,25 @@ DownloadManagerFTP::DownloadManagerFTP(QObject *parent) :
 }
 
 
+DownloadManagerFTP::~DownloadManagerFTP()
+{
+    if (_pFTP != NULL)
+    {
+        pause();
+
+        _pFTP->deleteLater();
+        _pFTP = NULL;
+    }
+
+    if (_pFile->isOpen())
+    {
+        _pFile->close();
+        delete _pFile;
+        _pFile = NULL;
+    }
+}
+
+
 /*
 // http://www.qtforum.org/article/14254/qftp-get-overloaded.html
 int QFtp::get(const QString &file, uint offSet, QIODevice *dev, TransferType type)
