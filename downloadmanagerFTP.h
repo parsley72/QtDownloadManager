@@ -34,32 +34,27 @@ public slots:
 
 private slots:
     void download();
-    void finishedHead();
     void finished();
-    void downloadProgress ( qint64 bytesReceived, qint64 bytesTotal );
-    void error ( QNetworkReply::NetworkError code );
+    void error(QNetworkReply::NetworkError code);
     void timeout();
-    void ftpStateChanged(int state);
-    void ftpCommandStarted(int id);
-    void ftpCommandFinished(int id, bool error);
-    void ftpRawCommandReply(int replyCode, const QString & detail);
-//    void ftpDataTransferProgress(qint64 bytesReceived, qint64 bytesTotal);
-    void ftpReadyRead();
+    void stateChanged(int state);
+    void commandStarted(int id);
+    void commandFinished(int id, bool error);
+    void rawCommandReply(int replyCode, const QString & detail);
+    void readyRead();
 
 private:
+    static QString ftpCmd(QFtp::Command eCmd);
     void ftpFinishedHelp();
 
     QUrl _URL;
     QString _qsFileName;
-    QNetworkAccessManager* _pManager;
-    QNetworkRequest _CurrentRequest;
-    QNetworkReply* _pCurrentReply;
+    QFtp *_pFTP;
     QFile* _pFile;
     int _nDownloadTotal;
     bool _bAcceptRanges;
     int _nDownloadSize;
     int _nDownloadSizeAtPause;
-    QFtp *_pFTP;
     QTimer _Timer;
 };
 

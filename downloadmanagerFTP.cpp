@@ -12,14 +12,12 @@
 
 DownloadManagerFTP::DownloadManagerFTP(QObject *parent) :
     QObject(parent)
-    , _pManager(NULL)
-    , _pCurrentReply(NULL)
+    , _pFTP(NULL)
     , _pFile(NULL)
     , _nDownloadTotal(0)
     , _bAcceptRanges(false)
     , _nDownloadSize(0)
     , _nDownloadSizeAtPause(0)
-    , _pFTP(NULL)
 {
 }
 
@@ -77,51 +75,45 @@ void DownloadManagerFTP::download(QUrl url)
     _nDownloadSize = 0;
     _nDownloadSizeAtPause = 0;
 
-    if (url.scheme().toLower() == "ftp")
+    if (_pFTP == NULL)
     {
         _pFTP = new QFtp(this);
-        connect(_pFTP, SIGNAL(stateChanged(int)), this, SLOT(ftpStateChanged(int)));
-        connect(_pFTP, SIGNAL(commandStarted(int)), this, SLOT(ftpCommandStarted(int)));
-        connect(_pFTP, SIGNAL(commandFinished(int,bool)), this, SLOT(ftpCommandFinished(int,bool)));
-        connect(_pFTP, SIGNAL(rawCommandReply(int, const QString &)), this, SLOT(ftpRawCommandReply(int, const QString &)));
+
+        connect(_pFTP, SIGNAL(stateChanged(int)), this, SLOT(stateChanged(int)));
+        connect(_pFTP, SIGNAL(commandStarted(int)), this, SLOT(commandStarted(int)));
+        connect(_pFTP, SIGNAL(commandFinished(int,bool)), this, SLOT(commandFinished(int,bool)));
+        connect(_pFTP, SIGNAL(rawCommandReply(int, const QString &)), this, SLOT(rawCommandReply(int, const QString &)));
         //connect(_pFTP, SIGNAL(dataTransferProgress(qint64,qint64)), this, SLOT(ftpDataTransferProgress(qint64,qint64)));
-        connect(_pFTP, SIGNAL(readyRead()), this, SLOT(ftpReadyRead()));
-
-        qDebug() << "connectToHost(" << _URL.host() << "," << url.port(21) << ")";
-        _pFTP->connectToHost(_URL.host(), url.port(21));
-        _pFTP->login();
-        qDebug() << "HELP";
-        _pFTP->rawCommand("HELP");
+        connect(_pFTP, SIGNAL(readyRead()), this, SLOT(readyRead()));
     }
-    else
-    {
-        _pManager = new QNetworkAccessManager(this);
-        _CurrentRequest = QNetworkRequest(url);
 
-        _pCurrentReply = _pManager->head(_CurrentRequest);
+    qDebug() << "connectToHost(" << _URL.host() << "," << url.port(21) << ")";
+    _pFTP->connectToHost(_URL.host(), url.port(21));
+    _pFTP->login();
+    qDebug() << "HELP";
+    _pFTP->rawCommand("HELP");
 
-        connect(_pCurrentReply, SIGNAL(finished()), this, SLOT(finishedHead()));
-        connect(_pCurrentReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(error(QNetworkReply::NetworkError)));
-    }
+    _Timer.setInterval(15000);
+    _Timer.setSingleShot(true);
+    connect(&_Timer, SIGNAL(timeout()), this, SLOT(timeout()));
+    _Timer.start();
 }
 
 
 void DownloadManagerFTP::pause()
 {
-    qDebug() << "pause() = " << _nDownloadSize;
-    if (_pCurrentReply == 0)
-    {
-        return;
-    }
-    disconnect(_pCurrentReply,SIGNAL(finished()),this,SLOT(finished()));
-    disconnect(_pCurrentReply,SIGNAL(downloadProgress(qint64,qint64)),this,SLOT(downloadProgress(qint64,qint64)));
-    disconnect(_pCurrentReply,SIGNAL(error(QNetworkReply::NetworkError)),this,SLOT(error(QNetworkReply::NetworkError)));
+    qDebug() << __FUNCTION__ << "(): _nDownloadSize = " << _nDownloadSize;
+
     _Timer.stop();
 
-    _pCurrentReply->abort();
-//    _pFile->write( _pCurrentReply->readAll());
+    //disconnect(_pFTP, SIGNAL(dataTransferProgress(qint64,qint64)), this, SLOT(ftpDataTransferProgress(qint64,qint64)));
+    //disconnect(_pFTP, SIGNAL(readyRead()), this, SLOT(readyRead()));
+
+    _pFTP->abort();
+//    qDebug() << "ABOR";
+//    _pFTP->rawCommand("ABOR");
+
     _pFile->flush();
-    _pCurrentReply = 0;
     _nDownloadSizeAtPause = _nDownloadSize;
     _nDownloadSize = 0;
 }
@@ -129,7 +121,7 @@ void DownloadManagerFTP::pause()
 
 void DownloadManagerFTP::resume()
 {
-    qDebug() << "resume() = " << _nDownloadSizeAtPause;
+    qDebug() << __FUNCTION__ << "(): _nDownloadSizeAtPause = " << _nDownloadSizeAtPause;
 
     download();
 }
@@ -137,60 +129,33 @@ void DownloadManagerFTP::resume()
 
 void DownloadManagerFTP::download()
 {
-    qDebug() << "download()";
+    qDebug() << __FUNCTION__ << "():";
 
-    if (_bAcceptRanges)
+    //connect(_pFTP, SIGNAL(dataTransferProgress(qint64,qint64)), this, SLOT(ftpDataTransferProgress(qint64,qint64)));
+    connect(_pFTP, SIGNAL(readyRead()), this, SLOT(readyRead()));
+
+    if (_bAcceptRanges && (_nDownloadSizeAtPause > 0))
     {
-        QByteArray rangeHeaderValue = "bytes=" + QByteArray::number(_nDownloadSizeAtPause) + "-";
-        if (_nDownloadTotal > 0)
-        {
-            rangeHeaderValue += QByteArray::number(_nDownloadTotal);
-        }
-        _CurrentRequest.setRawHeader("Range", rangeHeaderValue);
+        qDebug() << "TYPE I";
+        _pFTP->rawCommand("TYPE I"); // Binary mode
+//        qDebug() << "PASV";
+//        _pFTP->rawCommand("PASV"); // Passive mode
+        qDebug() << "PORT";
+        _pFTP->rawCommand("PORT"); // Active mode
+        qDebug() << "REST " << _nDownloadSizeAtPause;
+        _pFTP->rawCommand(QString("REST %1").arg(_nDownloadSizeAtPause));
+        qDebug() << "RETR " << _qsFileName;
+        _pFTP->rawCommand(QString("RETR " + _qsFileName));
+    }
+    else
+    {
+        _pFTP->get(_qsFileName);
     }
 
-    _pCurrentReply = _pManager->get(_CurrentRequest);
-
-
-    connect(_pCurrentReply, SIGNAL(finished()), this, SLOT(finished()));
-    connect(_pCurrentReply, SIGNAL(downloadProgress(qint64,qint64)), this, SLOT(downloadProgress(qint64,qint64)));
-    connect(_pCurrentReply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(error(QNetworkReply::NetworkError)));
-}
-
-
-void DownloadManagerFTP::finishedHead()
-{
-    _pTimer->stop();
-    _bAcceptRanges = false;
-
-    QList<QByteArray> list = _pCurrentReply->rawHeaderList();
-    foreach (QByteArray header, list)
-    {
-        QString qsLine = QString(header) + " = " + _pCurrentReply->rawHeader(header);
-        addLine(qsLine);
-    }
-
-    if (_pCurrentReply->hasRawHeader("Accept-Ranges"))
-    {
-        QString qstrAcceptRanges = _pCurrentReply->rawHeader("Accept-Ranges");
-        _bAcceptRanges = (qstrAcceptRanges.compare("bytes", Qt::CaseInsensitive) == 0);
-        qDebug() << "Accept-Ranges = " << qstrAcceptRanges << _bAcceptRanges;
-    }
-
-    _nDownloadTotal = _pCurrentReply->header(QNetworkRequest::ContentLengthHeader).toInt();
-
-//    _CurrentRequest = QNetworkRequest(url);
-    _CurrentRequest.setRawHeader("Connection", "Keep-Alive");
-    _CurrentRequest.setAttribute(QNetworkRequest::HttpPipeliningAllowedAttribute, true);
-    _pFile = new QFile(_qsFileName + ".part");
-    if (!_bAcceptRanges)
-    {
-        _pFile->remove();
-    }
-    _pFile->open(QIODevice::ReadWrite | QIODevice::Append);
-
-    _nDownloadSizeAtPause = _pFile->size();
-    download();
+    _Timer.setInterval(15000);
+    _Timer.setSingleShot(true);
+    connect(&_Timer, SIGNAL(timeout()), this, SLOT(timeout()));
+    _Timer.start();
 }
 
 
@@ -202,22 +167,10 @@ void DownloadManagerFTP::finished()
     _pFile->close();
     QFile::remove(_qsFileName);
     _pFile->rename(_qsFileName + ".part", _qsFileName);
+    delete _pFile;
     _pFile = NULL;
-    _pCurrentReply = 0;
+
     emit downloadComplete();
-}
-
-
-void DownloadManagerFTP::downloadProgress(qint64 bytesReceived, qint64 bytesTotal)
-{
-    _nDownloadSize = _nDownloadSizeAtPause + bytesReceived;
-    qDebug() << "Download Progress: Received=" << _nDownloadSize <<": Total=" << _nDownloadSizeAtPause + bytesTotal;
-
-    _pFile->write(_pCurrentReply->readAll());
-    int percentage = ((_nDownloadSizeAtPause + bytesReceived) * 100) / (_nDownloadSizeAtPause + bytesTotal);
-    qDebug() << percentage;
-    emit progress(percentage);
-
 }
 
 
@@ -233,9 +186,10 @@ void DownloadManagerFTP::timeout()
 }
 
 
-void DownloadManagerFTP::ftpStateChanged(int state)
+void DownloadManagerFTP::stateChanged(int state)
 {
     QString qsState;
+
     switch (static_cast<QFtp::State>(state))
     {
         case QFtp::Unconnected: qsState = "Unconnected"; break;
@@ -251,37 +205,10 @@ void DownloadManagerFTP::ftpStateChanged(int state)
 }
 
 
-void DownloadManagerFTP::ftpCommandStarted(int id)
+QString DownloadManagerFTP::ftpCmd(QFtp::Command eCmd)
 {
     QString qsCmd;
-    switch (static_cast<QFtp::Command>(id))
-    {
-        case QFtp::None: qsCmd = "None"; break;
-        case QFtp::SetTransferMode: qsCmd = "SetTransferMode"; break;
-        case QFtp::SetProxy: qsCmd = "SetProxy"; break;
-        case QFtp::ConnectToHost: qsCmd = "ConnectToHost"; break;
-        case QFtp::Login: qsCmd = "Login"; break;
-        case QFtp::Close: qsCmd = "Close"; break;
-        case QFtp::List: qsCmd = "List"; break;
-        case QFtp::Cd: qsCmd = "Cd"; break;
-        case QFtp::Get: qsCmd = "Get"; break;
-        case QFtp::Put: qsCmd = "Put"; break;
-        case QFtp::Remove: qsCmd = "Remove"; break;
-        case QFtp::Mkdir: qsCmd = "Mkdir"; break;
-        case QFtp::Rmdir: qsCmd = "Rmdir"; break;
-        case QFtp::Rename: qsCmd = "Rename"; break;
-        case QFtp::RawCommand: qsCmd = "RawCommand"; break;
-        default: qsCmd = "Unknown"; break;
-    }
 
-    qDebug() << __FUNCTION__ << "(" << id << "=" << qsCmd << ")";
-}
-
-
-void DownloadManagerFTP::ftpCommandFinished(int id, bool error)
-{
-    QFtp::Command eCmd = static_cast<QFtp::Command>(id);
-    QString qsCmd;
     switch (eCmd)
     {
         case QFtp::None: qsCmd = "None"; break;
@@ -302,76 +229,34 @@ void DownloadManagerFTP::ftpCommandFinished(int id, bool error)
         default: qsCmd = "Unknown"; break;
     }
 
-    qDebug() << __FUNCTION__ << "(" << id << "=" << qsCmd << "," << error << ")";
-
-    if ((eCmd == QFtp::Get) || (eCmd == QFtp::Login))
-    {
-/*
-        _pFile->close();
-        QFile::remove(_qsFileName);
-        _pFile->rename(_qsFileName + ".part", _qsFileName);
-        _pFile = NULL;
-        emit downloadComplete();
-*/
-    }
-    else if (eCmd == QFtp::ConnectToHost)
-    {
-/*
-        _pFTP->rawCommand(QString("RETR " + _qsFileName));
-        _pFTP->rawCommand("REST 1000"); // 68,741,120 bytes
-        qDebug() << "get(" << _qsFileName << ")";
-        _pFTP->get(_qsFileName);
-*/
-/*
-        qDebug() << "REST 1000";
-        _pFTP->rawCommand("REST 1000"); // 68,741,120 bytes
-        qDebug() << "RETR " << _qsFileName;
-        _pFTP->rawCommand(QString("RETR " + _qsFileName));
-*/
-    }
+    return qsCmd;
 }
 
 
-void DownloadManagerFTP::ftpRawCommandReply(int replyCode, const QString &detail)
+void DownloadManagerFTP::commandStarted(int id)
 {
-    qDebug() << __FUNCTION__ << "(" << replyCode << "," << detail << ")";
+    qDebug() << __FUNCTION__ << "(" << id << ")";
+}
+
+
+void DownloadManagerFTP::commandFinished(int id, bool error)
+{
+    qDebug() << __FUNCTION__ << "(" << id << "," << error << ")";
+}
+
+
+void DownloadManagerFTP::rawCommandReply(int replyCode, const QString &detail)
+{
+    int id = _pFTP->currentId();
+    qDebug() << __FUNCTION__ << "(" << replyCode << "," << detail << "): " << id;
 
     switch (replyCode)
     {
-        case 213: // SIZE
-        {
-            _nDownloadTotal = detail.toInt();
-
-            if (_bAcceptRanges && (_nDownloadSizeAtPause > 0))
-            {
-/*
-                qDebug() << "REST 1000";
-                _pFTP->rawCommand("REST 1000"); // 68,741,120 bytes
-                qDebug() << "RETR " << _qsFileName;
-                _pFTP->rawCommand(QString("RETR " + _qsFileName));
-                qDebug() << "get(" << _qsFileName << ")";
-                _pFTP->get(_qsFileName);
-*/
-                qDebug() << "TYPE I";
-                _pFTP->rawCommand("TYPE I"); // Binary mode
-//                qDebug() << "PASV";
-//                _pFTP->rawCommand("PASV");
-                qDebug() << "PORT";
-                _pFTP->rawCommand("PORT"); // Active mode
-                qDebug() << "REST " << _nDownloadSizeAtPause;
-                _pFTP->rawCommand(QString("REST %1").arg(_nDownloadSizeAtPause));
-                qDebug() << "RETR " << _qsFileName;
-                _pFTP->rawCommand(QString("RETR " + _qsFileName));
-            }
-            else
-            {
-                _pFTP->get(_qsFileName);
-            }
-        }
-        break;
-
+        case 200:
         case 214: // HELP
         {
+            addLine(detail);
+
             if (detail.contains(QLatin1String("REST"), Qt::CaseSensitive))
             {
                 _bAcceptRanges = true;
@@ -381,81 +266,32 @@ void DownloadManagerFTP::ftpRawCommandReply(int replyCode, const QString &detail
         }
         break;
 
+        case 213: // SIZE
+        {
+            _nDownloadTotal = detail.toInt();
+
+            download();
+        }
+        break;
+
         case 226: // RETR
         {
             if (_pFile->isOpen())
             {
-                _pFile->close();
-                QFile::remove(_qsFileName);
-                _pFile->rename(_qsFileName + ".part", _qsFileName);
-                _pFile = NULL;
-                emit downloadComplete();
+                finished();
             }
+        }
+        break;
+
+        case 550:
+        {
         }
         break;
     }
 }
 
 
-#if 0
-void DownloadManagerFTP::ftpDataTransferProgress(qint64 bytesReceived, qint64 bytesTotal)
-{
-    if (bytesTotal == 0xCDCDCDCDCDCDCDCD)
-    {
-        return;
-    }
-
-    qDebug() << __FUNCTION__ << "(" << bytesReceived << "," << bytesTotal << ")";
-
-/*
-    if (bytesReceived < 0)
-    {
-        bytesReceived &= 0x7FFFFFFFFFFFFFFF;
-    }
-    if (bytesTotal < 0)
-    {
-        bytesTotal &= 0x7FFFFFFFFFFFFFFF;
-    }
-*/
-    // 0x418E800 -> 7FFFFFF
-    // 0x64FD2F8
-/*
-    bytesReceived &= 0x7FFFFFF;
-    bytesTotal &= 0x7FFFFFF;
-*/
-/*
-    if (bytesReceived < 0)
-    {
-        bytesReceived = -bytesReceived;
-    }
-    if (bytesTotal < 0)
-    {
-        bytesTotal = -bytesTotal;
-    }
-*/
-    // CDCDCDCDCDCDDB5D -> 56153
-    // CDCDCDCDCDCDE8ED -> 59629
-    // CDCDCDCDCDCDF67D -> 63101
-
-    // CDCDCDCDD0A88006 -> 3500703750
-    //          418E800 ->   68741120
-
-    if (bytesTotal == 0xCDCDCDCDCDCDCDCD)
-    {
-        bytesTotal = _nDownloadTotal - _nDownloadSizeAtPause;
-    }
-
-    _nDownloadSize = _nDownloadSizeAtPause + bytesReceived;
-    qDebug() << "Download Progress: Received=" << _nDownloadSize <<": Total=" << _nDownloadSizeAtPause + bytesTotal;
-
-    int percentage = ((_nDownloadSizeAtPause + bytesReceived) * 100) / (_nDownloadSizeAtPause + bytesTotal);
-    qDebug() << percentage;
-    emit progress(percentage);
-}
-#endif // 0
-
-
-void DownloadManagerFTP::ftpReadyRead()
+void DownloadManagerFTP::readyRead()
 {
 //    qDebug() << __FUNCTION__ << "()";
 
@@ -473,22 +309,21 @@ void DownloadManagerFTP::ftpReadyRead()
     }
     _nDownloadSize += data.size();
 
-    qDebug() << "Download Progress: Received=" << _nDownloadSize <<": Total=" << _nDownloadTotal;
-
     int nPercentage = static_cast<int>((static_cast<float>(_nDownloadSize) * 100.0) / static_cast<float>(_nDownloadTotal));
-    qDebug() << nPercentage;
     emit progress(nPercentage);
+
+    qDebug() << "Download Progress: Received=" << _nDownloadSize <<": Total=" << _nDownloadTotal << " %" << nPercentage;
 
     if (_nDownloadSize == _nDownloadTotal)
     {
         if (_pFile->isOpen())
         {
-            _pFile->close();
-            QFile::remove(_qsFileName);
-            _pFile->rename(_qsFileName + ".part", _qsFileName);
-            _pFile = NULL;
-            emit downloadComplete();
+            finished();
         }
+    }
+    else
+    {
+        _Timer.start(15000);
     }
 }
 
