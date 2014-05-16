@@ -1,4 +1,4 @@
-#include "DownloadManagerFTP.h"
+#include "downloadmanagerFTP.h"
 #include "downloadwidget.h"
 
 #include <QtGlobal>

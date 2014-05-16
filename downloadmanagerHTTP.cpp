@@ -1,4 +1,4 @@
-#include "DownloadManagerHTTP.h"
+#include "downloadmanagerHTTP.h"
 #include "downloadwidget.h"
 
 #include <QFileInfo>
