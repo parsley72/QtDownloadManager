@@ -1,7 +1,7 @@
 #include <QtGlobal>
 
 #if QT_VERSION >= 0x050000
-    #include <QtWidgets\QApplication>
+    #include <QtWidgets/QApplication>
 #else
     #include <QApplication>
 #endif
